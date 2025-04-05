@@ -1,42 +1,32 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using WebAPICommonPitfalls.Features.SalesOrderDetail.Services;
 using Carter;
+using MediatR;
+using WebAPICommonPitfalls.Features.SalesOrderDetail.Queries;
+using Microsoft.AspNetCore.Mvc;
+using WebAPICommonPitfalls.Common.Utilities;
 
 namespace WebAPICommonPitfalls.Features.SalesOrderDetail.Endpoints
 {
     public class SalesOrderDetailModule : ICarterModule
     {
         public void AddRoutes(IEndpointRouteBuilder app)
-        {
-            app.MapGet("/salesorderdetails", async (ISalesOrderDetailService salesOrderDetailService) =>
+        {            
+            app.MapGet("/salesorderdetails", async (ISender sender, [AsParameters] PaginationFilter paginationFilter, ILogger<SalesOrderDetailModule> logger, HttpContext httpContext) =>
             {
-                var salesOrderDetails = await salesOrderDetailService.GetAllAsync();
-                return Results.Ok(salesOrderDetails);
-            });
-
-            app.MapGet("/salesorderdetails/{id}", async (int id, ISalesOrderDetailService salesOrderDetailService) =>
-            {
-                var salesOrderDetail = await salesOrderDetailService.GetByIdAsync(id);
-                return salesOrderDetail != null ? Results.Ok(salesOrderDetail) : Results.NotFound();
-            });
-
-            app.MapPost("/salesorderdetails", async (Models.SalesOrderDetail salesOrderDetail, ISalesOrderDetailService salesOrderDetailService) =>
-            {
-                var createdSalesOrderDetail = await salesOrderDetailService.CreateAsync(salesOrderDetail);
-                return Results.Created($"/salesorderdetails/{createdSalesOrderDetail.SalesOrderID}", createdSalesOrderDetail);
-            });
-
-            app.MapPut("/salesorderdetails/{id}", async (int id, Models.SalesOrderDetail salesOrderDetail, ISalesOrderDetailService salesOrderDetailService) =>
-            {
-                var updatedSalesOrderDetail = await salesOrderDetailService.UpdateAsync(id, salesOrderDetail);
-                return Results.Ok(updatedSalesOrderDetail);
-            });
-
-            app.MapDelete("/salesorderdetails/{id}", async (int id, ISalesOrderDetailService salesOrderDetailService) =>
-            {
-                var deleted = await salesOrderDetailService.DeleteAsync(id);
-                return deleted ? Results.NoContent() : Results.NotFound();
+                // Validate pagination filter
+                if (paginationFilter.PageNumber <= 0 || paginationFilter.PageSize <= 0)
+                {
+                    return Results.BadRequest("Invalid pagination parameters.");
+                }
+                // Log the request
+                logger.LogInformation("Fetching sales order details with pagination: {PageNumber}, {PageSize}", paginationFilter.PageNumber, paginationFilter.PageSize);
+                // Extract routing details from the request
+                var routePattern = (httpContext.GetEndpoint()?.DisplayName!.Split('/').Last() ?? string.Empty).ToLowerInvariant();
+                // Use the sender to send the query and get the result
+                var query = new CollectionShipmentQuery(paginationFilter, routePattern);
+                var result = await sender.Send(query);
+                return result.IsSuccess ? Results.Ok(result.Value) : Results.BadRequest(result.Error);
             });
         }
     }

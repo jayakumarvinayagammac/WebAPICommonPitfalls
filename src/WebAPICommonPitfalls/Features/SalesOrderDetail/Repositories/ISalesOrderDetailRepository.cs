@@ -15,11 +15,14 @@ namespace WebAPICommonPitfalls.Features.SalesOrderDetail.Repositories
     public class SalesOrderDetailRepository : ISalesOrderDetailRepository
     {
         private readonly List<Models.SalesOrderDetail> _salesOrderDetails;
-
-        public SalesOrderDetailRepository(string jsonFilePath = "g:\\Json Source\\SalesOrderDetail.json")
+        private readonly ILogger<SalesOrderDetailRepository> _logger;
+        public SalesOrderDetailRepository(ILogger<SalesOrderDetailRepository> logger, string jsonFilePath = "g:\\Json Source\\SalesOrderDetail.json")
         {
+            _logger = logger;
+            _logger.LogInformation("SalesOrderDetailRepository initialized.");
+            _logger.LogInformation("Loading sales order details from JSON file: {JsonFilePath}", jsonFilePath);
             _salesOrderDetails = LoadSalesOrderDetailsFromJson(jsonFilePath);
-        }
+        }       
 
         private List<Models.SalesOrderDetail> LoadSalesOrderDetailsFromJson(string jsonFilePath)
         {
